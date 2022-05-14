@@ -1,5 +1,5 @@
 import numpy as np
-
+from queue import Queue
 
 class Graph:
     def __init__(self):
@@ -55,6 +55,128 @@ class add(Operation):
 
     def compute(self, x_value, y_value):
         return x_value + y_value
+
+class sigmoid(Operation):
+    def __init__(self, x):
+        super(sigmoid, self).__init__([x])
+
+    def compute(self, x_value):
+        return 1 / (1 + np.exp(-x_value))
+
+class softmax(Operation):
+    def __init__(self, x):
+        super(softmax, self).__init__([x])
+
+    def compute(self, x_value):
+        return np.exp(x_value) / np.sum(np.exp(x_value), axis=1)[:, None]
+
+class negative(Operation):
+    def __init__(self, x):
+        super(negative, self).__init__([x])
+
+    def compute(self, x_value):
+        return -x_value
+
+class reduce_sum(Operation):
+    def __init__(self, A, axis=None):
+        super(reduce_sum, self).__init__([A])
+        self.axis = axis
+
+    def compute(self, A_value):
+        return np.sum(A_value, self.axis)
+
+class multiply(Operation):
+    def __init__(self, x, y):
+        super(multiply, self).__init__([x, y])
+
+    def compute(self, x_value, y_value):
+        return x_value * y_value
+
+class log(Operation):
+    def __init__(self, x):
+        super(log, self).__init__([x])
+
+    def compute(self, x_value):
+        return np.log(x_value)
+
+
+# 梯度计算
+_gradient_registry = {}
+class ResiterGradient:
+    def __init__(self, op_type):
+        self.op_type = eval(op_type)
+
+    def __call__(self, f):
+        _gradient_registry[self.op_type] = f
+        return f
+
+# negative_gradients
+@ResiterGradient('negtive')
+def _negative_gradient(op, grad):
+    return -grad
+
+def compute_gradients(loss):
+    grad_table = {}
+    grad_table[loss] = 1
+
+    # 广度优先搜索
+    visited = set()
+    queue = Queue()
+
+    visited.add(loss)
+    queue.put(loss)
+
+    while not queue.empty():
+        node = queue.get()
+
+        if node != loss:
+            grad_table[loss] = 0
+
+            # 计算所有梯度
+            for consumer in node.consumers:
+                loss_grad_consumer_output = grad_table[consumer]
+                bp_func = _gradient_registry[consumer.__class__]
+                loss_grad_consumer_inputs = bp_func(consumer, loss_grad_consumer_output)
+
+                if len(consumer.input_nodes) == 1:
+                    grad_table[node] += loss_grad_consumer_inputs
+                else:
+                    node_index_consumer_inputs = consumer.input_nodes.index(node)
+                    loss_grad = loss_grad_consumer_inputs[node_index_consumer_inputs]
+                    grad_table[node] += loss_grad
+
+        if hasattr(node, 'input_nodes'):
+            for input_node in node.input_nodes:
+                if input_node not in visited:
+                    visited.add(input_node)
+                    queue.put(input_node)
+
+    return grad_table
+
+
+# 优化器
+class MinimizationOperation(Operation):
+    def __init__(self, loss, learning_rate):
+        self.loss = loss
+        self.learning_rate = learning_rate
+
+    def compute(self):
+        # 计算梯度， grad_table 是 dict ： key: node value: grad
+        grad_table = compute_gradients(loss)
+
+        # 遍历所有节点
+        for node in grad_table:
+            if isinstance(node, Variables):
+                grad = grad_table[node]
+
+                node.value -= self.learning_rate * grad
+
+class GradientDescentOptimizer:
+    def __init__(self, learning_rate, loss):
+        self.learning_rate = learning_rate
+
+    def minimize(self, loss):
+        return MinimizationOperation(loss, self.learning_rate)
 
 
 def traverse_postorder(operation):
