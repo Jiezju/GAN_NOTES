@@ -70,6 +70,12 @@ generator = Generator()
 discriminator = Discriminator()
 
 # Loss function
+#
+# function: - [y log p + (1 - y) log (1 - p)]
+# label = 1: - log p
+# label = 0: - log(1 - p)
+# 对于 discriminater : label 为 1 时 bce loss 越小越好，label 为 0 时，p 越小越好，所以 loss 越小越好
+# 对于 generater: 希望 label 为 1， 则 loss = - log p
 adversarial_loss = torch.nn.BCELoss()
 
 # Configure data loader
@@ -83,7 +89,7 @@ dataloader = torch.utils.data.DataLoader(
             [transforms.Resize(28), transforms.ToTensor(), transforms.Normalize([0.5], [0.5])]
         ),
     ),
-    batch_size=10,
+    batch_size=2,
     shuffle=True,
 )
 
@@ -116,17 +122,12 @@ for epoch in range(10):
         optimizer_D.zero_grad()
 
         # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(real_imgs), 1.0)
-        fake_loss = adversarial_loss(discriminator(generator(z)), 0.0)
-        d_loss = (real_loss + fake_loss) / 2
+        real_loss = adversarial_loss(discriminator(real_imgs), valid)
+        fake_loss = adversarial_loss(discriminator(generator(z)), fake)
+        d_loss = real_loss + fake_loss
 
         d_loss.backward()
         optimizer_D.step()
-
-        print(
-            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
-            % (epoch, 10, i, len(dataloader), d_loss.item(), g_loss.item())
-        )
 
         # -----------------
         #  Train Generator
@@ -138,7 +139,8 @@ for epoch in range(10):
         gen_imgs = generator(z)
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss = adversarial_loss(discriminator(gen_imgs), 1.0)
+        g_loss = - adversarial_loss(1 - discriminator(gen_imgs), valid)
+        # g_loss_ = torch.mean(torch.log(1 - discriminator(gen_imgs)))
 
         g_loss.backward()
         optimizer_G.step()
@@ -146,3 +148,9 @@ for epoch in range(10):
         batches_done = epoch * len(dataloader) + i
         if batches_done % 400 == 0:
             save_image(gen_imgs.data[:25], "images/%d.png" % batches_done, nrow=5, normalize=True)
+
+
+        print(
+            "[Epoch %d/%d] [Batch %d/%d] [D loss: %f] [G loss: %f]"
+            % (epoch, 10, i, len(dataloader), d_loss.item(), g_loss.item())
+        )
