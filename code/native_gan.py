@@ -17,7 +17,7 @@ import torch
 os.makedirs("images", exist_ok=True)
 
 img_shape = (1, 28, 28)
-
+smooth = 0.1  # 标签平滑
 
 class Generator(nn.Module):
     def __init__(self):
@@ -122,7 +122,7 @@ for epoch in range(10):
         optimizer_D.zero_grad()
 
         # Measure discriminator's ability to classify real from generated samples
-        real_loss = adversarial_loss(discriminator(real_imgs), valid)
+        real_loss = adversarial_loss(discriminator(real_imgs), valid * (1 - smooth))
         fake_loss = adversarial_loss(discriminator(generator(z)), fake)
         d_loss = real_loss + fake_loss
 
@@ -139,7 +139,7 @@ for epoch in range(10):
         gen_imgs = generator(z)
 
         # Loss measures generator's ability to fool the discriminator
-        g_loss = - adversarial_loss(1 - discriminator(gen_imgs), valid)
+        g_loss = - adversarial_loss(1 - discriminator(gen_imgs), valid * (1 - smooth))
         # g_loss_ = torch.mean(torch.log(1 - discriminator(gen_imgs)))
 
         g_loss.backward()
