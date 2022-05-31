@@ -140,9 +140,9 @@ class Discriminator(nn.Module):
             nn.BatchNorm2d(base_feature * 8),
             nn.LeakyReLU(0.2, inplace=True),
 
-            nn.Conv2d(base_feature * 8, base_feature * 8, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(base_feature * 8),
-            nn.LeakyReLU(0.2, inplace=True),
+            # nn.Conv2d(base_feature * 8, base_feature * 8, 4, 2, 1, bias=False),
+            # nn.BatchNorm2d(base_feature * 8),
+            # nn.LeakyReLU(0.2, inplace=True),
 
             nn.Conv2d(base_feature * 8, 1, 4, 1, 0, bias=False),
             nn.Sigmoid()
@@ -150,7 +150,7 @@ class Discriminator(nn.Module):
 
     def forward(self, x):
         x = self.dis(x)
-        return x
+        return x.reshape(x.shape[0], -1)
 
 
 """
@@ -291,15 +291,15 @@ for epoch in range(num_epochs):
     real_image, noise_image, edge_image = _get_train_image(batch_size)
 
     # 第一步：训练判别器
-    real_label = torch.full((batch_size,), 1)
-    fake_label = torch.full((batch_size,), 0)
+    real_label = torch.full((batch_size, 1), 1, dtype=torch.float)
+    fake_label = torch.full((batch_size, 1), 0, dtype=torch.float)
 
     combined_preimage = torch.cat([edge_image, noise_image], dim=1) # [1, 4, 64, 64]
 
-    generate_image = G(combined_preimage)
+    generate_image = G(combined_preimage) # [1, 3, 64, 64]
 
-    real_image = torch.cat([combined_preimage, real_image], dim=1)
-    fake_image = torch.cat([combined_preimage, generate_image], dim=1)
+    real_image = torch.cat([combined_preimage, real_image], dim=1)  # [1, 7, 64, 64]
+    fake_image = torch.cat([combined_preimage, generate_image], dim=1)  # [1, 7, 64, 64]
 
     # _show_test_process_data(noise_image)
 
@@ -314,7 +314,7 @@ for epoch in range(num_epochs):
     d_optimizer.step()
 
     # 第二步：训练生成器
-    g_real_decision = D(fake_image)
+    g_real_decision = D(fake_image.detach())
     g_fake_loss = criterion(g_real_decision, real_label)
     g_optimizer.zero_grad()
     g_fake_loss.backward()
