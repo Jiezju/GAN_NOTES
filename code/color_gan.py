@@ -330,7 +330,7 @@ for epoch in range(num_epochs):
         test_img = cv2.imread('./img/cgan/0000001.jpg')
         test_img = cv2.cvtColor(test_img, cv2.COLOR_BGR2RGB)
         test_pil_img = Image.fromarray(test_img)
-        test_input = transform(test_pil_img)
+        test_input = transform_1(test_pil_img)
         test.append(torch.unsqueeze(test_input, 0))
         data = torch.cat(test, dim=0)
         generate_res = G(Variable(data).cuda())
