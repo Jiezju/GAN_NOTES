@@ -97,6 +97,7 @@ class Downsample(nn.Module):
                       kernel_size=3, stride=2, padding=1),
             nn.LeakyReLU(inplace=True),
         )
+        # 仅对单张图像求均值和方差 batch 则是多张图像的均值和方差
         self.bn = nn.InstanceNorm2d(out_channels)
 
     def forward(self, x, is_bn=True):
@@ -228,6 +229,10 @@ class ReplayBuffer:
 
 
 # Losses
+# GAN loss
+# lossD = min [1/2 (D(x) - 1)^2 + 1/2 (D(G(z))^2)]
+# lossG = min [1/2 (D(G(z)) - 1)^2]
+# 正比于 数据距离决策边界的损失惩罚， 同时不容易达到梯度饱和
 criterion_GAN = torch.nn.MSELoss()
 criterion_cycle = torch.nn.L1Loss()
 criterion_identity = torch.nn.L1Loss()
