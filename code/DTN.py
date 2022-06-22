@@ -411,7 +411,7 @@ class DomainTransferNet(object):
     def merge_images(self, sources, targets, batch_size):
         _, h, w, _ = sources.shape
         row = int(np.sqrt(batch_size))
-        merged = np.zeros([ro w * h, ro w * w * 2, 3])
+        merged = np.zeros([row * h, row * w * 2, 3])
 
         for idx, (s, t) in enumerate(zip(sources, targets)):
             i = idx // row
